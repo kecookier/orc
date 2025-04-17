@@ -311,9 +311,9 @@ namespace orc {
     std::cout << "[zhaokuo]"
               << " Consutruct RowReaderImpl "
               << " dataStart:" << opts.getOffset() << " dataLen:" << opts.getLength()
-              << " firstStripe: " << firstStripe << " lastStripe: " << lastStripe
-              << " currentStripe: " << currentStripe << " processingStripe: " << processingStripe
-              << " previousRow: " << previousRow << std::endl;
+              << " firstStripe: " << firstStripe_ << " lastStripe: " << lastStripe_
+              << " currentStripe: " << currentStripe_ << " processingStripe: " << processingStripe_
+              << " previousRow: " << previousRow_ << std::endl;
 
     // prepare SargsApplier if SearchArgument is available
     // TODO(zhaokuo) ?

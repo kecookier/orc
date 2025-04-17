@@ -58,6 +58,7 @@ int main(int argc, char* argv[]) {
 
   std::shared_ptr<orc::Type> readType(orc::Type::buildTypeFromString("struct<col0:decimal(9,4)>"));
   rowReaderOptions.setReadType(readType);
+  rowReaderOptions.setUseTightNumericVector(true);
 
   for (int i = 0; i < argc; ++i) {
     try {
