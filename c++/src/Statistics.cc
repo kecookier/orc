@@ -24,6 +24,7 @@
 
 namespace orc {
 
+  // proto::ColumnStatistics 转成 class ColumnStatistics
   ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics& s,
                                             const StatContext& statContext) {
     if (s.has_int_statistics()) {
@@ -45,6 +46,7 @@ namespace orc {
     } else if (s.has_binary_statistics()) {
       return new BinaryColumnStatisticsImpl(s, statContext);
     } else {
+      std::cout << "[zhaokuo]" << " default ColumnStatisticsImpl" << std::endl;
       return new ColumnStatisticsImpl(s);
     }
   }
@@ -58,6 +60,7 @@ namespace orc {
 
   StatisticsImpl::StatisticsImpl(const proto::Footer& footer, const StatContext& statContext) {
     for (int i = 0; i < footer.statistics_size(); i++) {
+      std::cout << "[zhaokuo]" << " convertColumnStatistics col:" << i << std::endl;
       colStats_.push_back(convertColumnStatistics(footer.statistics(i), statContext));
     }
   }

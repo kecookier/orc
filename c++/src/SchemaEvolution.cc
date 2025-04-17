@@ -94,6 +94,7 @@ namespace orc {
         case LONG:
         case FLOAT:
         case DOUBLE: {
+          // integer/floating => decimal/string/char/varchar/timestamp/integer/floating
           ret.isValid = ret.needConvert = isNumeric(readType) || isStringVariant(readType) ||
                                           isDecimal(readType) || isTimestamp(readType);
           break;

@@ -102,6 +102,7 @@ namespace orc {
       selectedColumns[id] = true;
       bool selectChild = true;
       if (kind == TypeKind::LIST || kind == TypeKind::MAP || kind == TypeKind::UNION) {
+        // TODO(zhaokuo) 具体对应什么场景呢？
         auto elem = idReadIntentMap.find(id);
         if (elem != idReadIntentMap.end() && elem->second == ReadIntent_OFFSETS) {
           selectChild = false;
@@ -168,6 +169,7 @@ namespace orc {
     }
   }
 
+  // 设置读取哪些列，options里有三种方式指定列list：index、name、typeId
   void ColumnSelector::updateSelected(std::vector<bool>& selectedColumns,
                                       const RowReaderOptions& options) {
     selectedColumns.assign(static_cast<size_t>(contents_->footer->types_size()), false);
@@ -195,6 +197,7 @@ namespace orc {
     selectedColumns[0] = true;  // column 0 is selected by default
   }
 
+  // 这里的fieldId是 TypeImpl中subType的下标索引
   void ColumnSelector::updateSelectedByFieldId(std::vector<bool>& selectedColumns,
                                                uint64_t fieldId) {
     if (fieldId < contents_->schema->getSubtypeCount()) {
@@ -207,6 +210,7 @@ namespace orc {
     }
   }
 
+  // 这里的typeId是 TypeImpl中columnId
   void ColumnSelector::updateSelectedByTypeId(std::vector<bool>& selectedColumns, uint64_t typeId) {
     updateSelectedByTypeId(selectedColumns, typeId, EMPTY_IDREADINTENTMAP());
   }
@@ -246,6 +250,7 @@ namespace orc {
     buildTypeNameIdMap(contents_->schema.get());
   }
 
+  // RowReaderOptions里 <offset, len> 指明要从文件里读取哪一段
   RowReaderImpl::RowReaderImpl(std::shared_ptr<FileContents> contents, const RowReaderOptions& opts)
       : localTimezone_(getLocalTimezone()),
         contents_(contents),
@@ -255,7 +260,9 @@ namespace orc {
         firstRowOfStripe_(*contents_->pool, 0),
         enableEncodedBlock_(opts.getEnableLazyDecoding()),
         readerTimezone_(getTimezoneByName(opts.getTimezoneName())),
+        // opts.getReadType() 是预期读的schema，可以不是全部的列？ 用于做 schema evolution
         schemaEvolution_(opts.getReadType(), contents_->schema.get()) {
+    // 初始化read状态变量
     uint64_t numberOfStripes;
     numberOfStripes = static_cast<uint64_t>(footer_->stripes_size());
     currentStripe_ = numberOfStripes;
@@ -301,8 +308,15 @@ namespace orc {
 
     ColumnSelector column_selector(contents_.get());
     column_selector.updateSelected(selectedColumns_, opts);
+    std::cout << "[zhaokuo]"
+              << " Consutruct RowReaderImpl "
+              << " dataStart:" << opts.getOffset() << " dataLen:" << opts.getLength()
+              << " firstStripe: " << firstStripe << " lastStripe: " << lastStripe
+              << " currentStripe: " << currentStripe << " processingStripe: " << processingStripe
+              << " previousRow: " << previousRow << std::endl;
 
     // prepare SargsApplier if SearchArgument is available
+    // TODO(zhaokuo) ?
     if (opts.getSearchArgument() && footer_->row_index_stride() > 0) {
       sargs_ = opts.getSearchArgument();
       sargsApplier_.reset(
@@ -702,13 +716,16 @@ namespace orc {
       const proto::StripeFooter& currentStripeFooter,
       std::vector<std::vector<proto::ColumnStatistics>>* indexStats) const {
     int num_streams = currentStripeFooter.streams_size();
-    uint64_t offset = stripeInfo.offset();
-    uint64_t indexEnd = stripeInfo.offset() + stripeInfo.index_length();
+    uint64_t offset = stripeInfo.offset(); // stripe起始位置
+    uint64_t indexEnd = stripeInfo.offset() + stripeInfo.index_length(); // stripe行索引结束位置
     for (int i = 0; i < num_streams; i++) {
       const proto::Stream& stream = currentStripeFooter.streams(i);
       StreamKind streamKind = static_cast<StreamKind>(stream.kind());
       uint64_t length = static_cast<uint64_t>(stream.length());
+      std::cout << "[zhaokuo] stripe:" << stripeIndex << " stream:" << i
+                << " kind:" << proto::Stream_Kind_Name(stream.kind()) << std::endl;
       if (streamKind == StreamKind::StreamKind_ROW_INDEX) {
+        // 找到 行索引流
         if (offset + length > indexEnd) {
           std::stringstream msg;
           msg << "Malformed RowIndex stream meta in stripe " << stripeIndex
@@ -717,6 +734,7 @@ namespace orc {
               << ", stripeIndexLength=" << stripeInfo.index_length();
           throw ParseError(msg.str());
         }
+        // <offset, length> 定位行索引流，创建解压缩流
         std::unique_ptr<SeekableInputStream> pbStream =
             createDecompressor(contents_->compression,
                                std::unique_ptr<SeekableInputStream>(new SeekableFileInputStream(
@@ -727,14 +745,29 @@ namespace orc {
         if (!rowIndex.ParseFromZeroCopyStream(pbStream.get())) {
           throw ParseError("Failed to parse RowIndex from stripe footer");
         }
-        int num_entries = rowIndex.entry_size();
-        size_t column = static_cast<size_t>(stream.column());
+        // 一个proto::RowIndex表示某一列的行索引，包含多个 proto::RowIndexEntry[]。
+        // 一个 RowIndexEntry表示一个行组的统计信息，统计信息的类型是ColumnStatistics
+        int num_entries = rowIndex.entry_size();               // 获取 proto::RowIndexEntry 数量
+        size_t column = static_cast<size_t>(stream.column());  // 从stream里获取column id
+        std::cout << "[zhaokuo]"
+                  << " StripeIndex: " << stripeIndex << " RowIndex column: " << column
+                  << " entrySize:" << num_entries << std::endl;
         for (int j = 0; j < num_entries; j++) {
           const proto::RowIndexEntry& entry = rowIndex.entry(j);
+
+          {
+            std::cout << "[zhaokuo]     entry:" << j << " pos:[";
+            for (const auto& pos : entry.positions()) {
+              std::cout << pos;
+            }
+            std::cout << "]" << std::endl;
+          }
+
           (*indexStats)[column].push_back(entry.statistics());
         }
       }
-      offset += length;
+      offset +=
+          length;  // Stripe里StripeFooter之前的数据，是一个一个流紧密排列的。一个流表示一个序列化的pb结构。
     }
   }
 
@@ -751,6 +784,8 @@ namespace orc {
     return *(contents_->schema.get());
   }
 
+  // StripeStatics不仅仅是 proto::StripeStatistics 的映射，也包括了
+  // indxStats(索引统计信息)。因此生成时需要从StripeInfo里拿到StripeFooter
   std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(uint64_t stripeIndex) const {
     if (!isMetadataLoaded_) {
       readMetadata();
@@ -1022,6 +1057,7 @@ namespace orc {
     }
   }
 
+  // 加载一个stripe
   void RowReaderImpl::startNextStripe() {
     reader_.reset();  // ColumnReaders use lots of memory; free old memory first
     rowIndexes_.clear();
@@ -1102,6 +1138,7 @@ namespace orc {
 
       if (sargsApplier_) {
         // move to the 1st selected row group when PPD is enabled.
+        // PPD= Predicate Pushdown(谓词下推)
         currentRowInStripe_ =
             advanceToNextRowGroup(currentRowInStripe_, rowsInCurrentStripe_,
                                   footer_->row_index_stride(), sargsApplier_->getNextSkippedRows());
@@ -1116,13 +1153,16 @@ namespace orc {
     }
   }
 
+  // 读一个batch的数据到data里
   bool RowReaderImpl::next(ColumnVectorBatch& data) {
     SCOPED_STOPWATCH(contents_->readerMetrics, ReaderInclusiveLatencyUs, ReaderCall);
+    // range的数据都读完了，返回false
     if (currentStripe_ >= lastStripe_) {
       data.numElements = 0;
       markEndOfFile();
       return false;
     }
+    // 读完当前stripe的数据后，开始读下一个stripe
     if (currentRowInStripe_ == 0) {
       startNextStripe();
     }
@@ -1237,6 +1277,7 @@ namespace orc {
     }
     const Type& readType =
         schemaEvolution_.getReadType() ? *schemaEvolution_.getReadType() : getSelectedType();
+    // 用ReadType创建RowBatch
     return readType.createRowBatch(capacity, *contents_->pool, enableEncodedBlock_,
                                    useTightNumericVector_);
   }
@@ -1277,8 +1318,10 @@ namespace orc {
     char* ptr = buffer->data();
     uint64_t readSize = buffer->size();
 
+    // 检查文件格式是否为orc。check postScript末尾的MAGIC，如果没有，检查head里的MAGIC
     ensureOrcFooter(stream, buffer, postscriptSize);
 
+    // 解析postscript
     auto postscript = std::make_unique<proto::PostScript>();
     if (readSize < 1 + postscriptSize) {
       std::stringstream msg;
@@ -1344,11 +1387,13 @@ namespace orc {
                                             MemoryPool& memoryPool, ReaderMetrics* readerMetrics) {
     const char* footerPtr = buffer->data() + footerOffset;
 
+    // footer和postScript不同，footer会被压缩，因此需要先解压
     std::unique_ptr<SeekableInputStream> pbStream = createDecompressor(
         convertCompressionKind(ps),
         std::make_unique<SeekableArrayInputStream>(footerPtr, ps.footer_length()),
         getCompressionBlockSize(ps), memoryPool, readerMetrics);
 
+    // TODO(zhaokuo) 需要看下 ZeroCopyStream才能清楚解压的流程
     auto footer = std::make_unique<proto::Footer>();
     if (!footer->ParseFromZeroCopyStream(pbStream.get())) {
       throw ParseError("Failed to parse the footer from " + stream->getName());
@@ -1358,6 +1403,10 @@ namespace orc {
     return footer;
   }
 
+  // Reader持有的是解析过的orc元素，创建时要边从流里读边解析
+  // 1. 先读文件末尾的 readSize(最小16KB) 数据，解析 postScriptLen
+  // 2. 再根据postScriptLen，从文件里读postScript数据，解析 proto::PostScript
+  // 3. 从 proto::postScript里拿到 footerLen，再从文件里读 footer数据，解析 proto::Footer
   std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
                                        const ReaderOptions& options) {
     auto contents = std::make_shared<FileContents>();
@@ -1390,6 +1439,8 @@ namespace orc {
       stream->read(buffer->data(), readSize, fileLength - readSize);
 
       postscriptLength = buffer->data()[readSize - 1] & 0xff;
+      // 第一次至少读16K， psLen一个字节，因此 psLen 必定小于 readSize。
+      // 可以直接从buffer里解析postScript。postScript不会压缩
       contents->postscript = readPostscript(stream.get(), buffer.get(), postscriptLength);
       uint64_t footerSize = contents->postscript->footer_length();
       uint64_t tailSize = 1 + postscriptLength + footerSize;
@@ -1401,6 +1452,7 @@ namespace orc {
       uint64_t footerOffset;
 
       if (tailSize > readSize) {
+        // 第一次读不够，那就重读一次，重读的时候可以只读footer
         buffer->resize(footerSize);
         stream->read(buffer->data(), footerSize, fileLength - tailSize);
         footerOffset = 0;

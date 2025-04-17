@@ -33,9 +33,9 @@ SET(ORC_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.$
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # For clang-tidy.
 list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules")
 
-option (BUILD_JAVA
-    "Include ORC Java library in the build process"
-     ON)
+option(BUILD_JAVA
+  "Include ORC Java library in the build process"
+  OFF)
 
 option (ANALYZE_JAVA
     "Run static analysis of the Java"
@@ -126,7 +126,7 @@ if (NOT MSVC)
   set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 endif ()
 message(STATUS "compiler ${CMAKE_CXX_COMPILER_ID} version ${CMAKE_CXX_COMPILER_VERSION}")
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
   if (CMAKE_CXX_COMPILER_VERSION STREQUAL "" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5.0")
     message(FATAL_ERROR "A c++17-compliant compiler is required, please use at least Clang 5")
   else ()

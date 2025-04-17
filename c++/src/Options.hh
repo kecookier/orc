@@ -142,8 +142,8 @@ namespace orc {
     ColumnSelection selection;
     std::list<uint64_t> includedColumnIndexes;
     std::list<std::string> includedColumnNames;
-    uint64_t dataStart;
-    uint64_t dataLength;
+    uint64_t dataStart;   // *指定读取数据的起始位置,文件内的offset
+    uint64_t dataLength;  // *指定读取数据的长度
     bool throwOnHive11DecimalOverflow;
     int32_t forcedScaleOnHive11Decimal;
     bool enableLazyDecoding;
@@ -151,8 +151,8 @@ namespace orc {
     std::string readerTimezone;
     RowReaderOptions::IdReadIntentMap idReadIntentMap;
     bool useTightNumericVector;
-    std::shared_ptr<Type> readType;
-    bool throwOnSchemaEvolutionOverflow;
+    std::shared_ptr<Type> readType;  // TODO(zhaokuo) 这个是表的schema吗？允许只传部分列吗？
+    bool throwOnSchemaEvolutionOverflow;  // TODO(zhaokuo)
 
     RowReaderOptionsPrivate() {
       selection = ColumnSelection_NONE;

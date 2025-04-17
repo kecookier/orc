@@ -47,6 +47,8 @@ namespace orc {
   DIAGNOSTIC_IGNORE("-Wunused-private-field")
 #endif
 
+  // 本地文件输入数据流，尚未结构化。封装file句柄，这个流不保存读取状态(offset)，需要调用方自己去维护offset。
+  // 把文件看做流，可以从任意的offset开始读数据。比如解析orc要从文件末尾开始
   class FileInputStream : public InputStream {
    private:
     std::string filename_;

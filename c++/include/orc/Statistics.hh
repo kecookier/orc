@@ -27,6 +27,11 @@
 
 namespace orc {
 
+  // 代码的整体设计思路， include/orc 是提供给用户的API。 实现都在 src/orc 里。
+  // 所以会看到同名的头文件。 比如
+  // include/orc/Statistics.hh 包含interface(基类)
+  // src/orc/Statistics.hh 包含 impl 类
+
   /**
    * Statistics that are available for all types of columns.
    */

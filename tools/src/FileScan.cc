@@ -55,6 +55,10 @@ int main(int argc, char* argv[]) {
     std::cerr << "Scans and displays the row count of the ORC files.\n";
     return 1;
   }
+
+  std::shared_ptr<orc::Type> readType(orc::Type::buildTypeFromString("struct<col0:decimal(9,4)>"));
+  rowReaderOptions.setReadType(readType);
+
   for (int i = 0; i < argc; ++i) {
     try {
       scanFile(std::cout, argv[i], batchSize, rowReaderOptions, showMetrics);

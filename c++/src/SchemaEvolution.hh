@@ -56,6 +56,7 @@ namespace orc {
    private:
     const std::shared_ptr<Type> readType_;
     std::unordered_map<uint64_t, const Type*> readTypeMap_;
+    // 可以安全转换的基础类型，比如int提权,float->double
     std::unordered_set<uint64_t> safePPDConversionMap_;
   };
 

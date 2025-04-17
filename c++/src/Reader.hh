@@ -57,12 +57,13 @@ namespace orc {
 
   /**
    * State shared between Reader and Row Reader
+   * 打开orc文件之后，保存文件元信息，包括 proto::PostScript/proto::Footer/proto::Metadata/schema
    */
   struct FileContents {
-    std::unique_ptr<InputStream> stream;
+    std::unique_ptr<InputStream> stream;  // orc文件输入流
     std::unique_ptr<proto::PostScript> postscript;
     std::unique_ptr<proto::Footer> footer;
-    std::unique_ptr<Type> schema;
+    std::unique_ptr<Type> schema;  // 树形结构schema: 从proto::footer.type里flatten的数组转换而来
     uint64_t blockSize;
     CompressionKind compression;
     MemoryPool* pool;
@@ -87,8 +88,8 @@ namespace orc {
 
   class ColumnSelector {
    private:
-    std::map<std::string, uint64_t> nameIdMap_;
-    std::map<uint64_t, const Type*> idTypeMap_;
+    std::map<std::string, uint64_t> nameIdMap_;  // Id是TypeImpl中的 columnId，这个类中叫 typeId
+    std::map<uint64_t, const Type*> idTypeMap_;  // Id是TypeImpl中的 columnId，这个类中叫 typeId
     const FileContents* contents_;
     std::vector<std::string> columns_;
 
@@ -98,10 +99,13 @@ namespace orc {
 
    public:
     // Select a field by name
+    // name => typeId => 设置selectedColumns
     void updateSelectedByName(std::vector<bool>& selectedColumns, const std::string& name);
     // Select a field by id
+    // filedId(field在schema中的下标) => TypeImpl.columnId => 设置selectedColumns
     void updateSelectedByFieldId(std::vector<bool>& selectedColumns, uint64_t fieldId);
     // Select a type by id
+    // typeId => 设置selectedColumns
     void updateSelectedByTypeId(std::vector<bool>& selectedColumns, uint64_t typeId);
     // Select a type by id and read intent map.
     void updateSelectedByTypeId(std::vector<bool>& selectedColumns, uint64_t typeId,
@@ -141,24 +145,33 @@ namespace orc {
     const bool throwOnHive11DecimalOverflow_;
     const int32_t forcedScaleOnHive11Decimal_;
 
-    // inputs
+    // <TypeImpl.columnId, 是否读取这一列> 注意这个id不代表第几列
     std::vector<bool> selectedColumns_;
 
     // footer
     proto::Footer* footer_;
+    // <stripeIndex, startRowOfFile>
+    // stripIndex:stripe索引，startRowOfFile:stripe第一行是整个文件的第几行
     DataBuffer<uint64_t> firstRowOfStripe_;
+    // 读取的schema，可以选择只读取特定列
     mutable std::unique_ptr<Type> selectedSchema_;
     bool skipBloomFilters_;
 
     // reading state
+    // 行号:当前正在读第几行
     uint64_t previousRow_;
+    // 区间内第一个stripe的index
     uint64_t firstStripe_;
+    // 当前正在读取的stripe的index
     uint64_t currentStripe_;
+    // 区间后第一个Strpie的index
     uint64_t lastStripe_;  // the stripe AFTER the last one
     uint64_t processingStripe_;
+    // 当前stripe里读到第几行了
     uint64_t currentRowInStripe_;
+    // 当前stripe里的行数
     uint64_t rowsInCurrentStripe_;
-    // number of row groups between first stripe and last stripe
+    // number of row groups between first stripe and last stripe 读取区间内所有Stripe的行组数量
     uint64_t numRowGroupsInStripeRange_;
     proto::StripeInformation currentStripeInfo_;
     proto::StripeFooter currentStripeFooter_;
@@ -258,6 +271,9 @@ namespace orc {
     }
   };
 
+  // Reader从流数据中解析orc格式的各个元信息，包括posScript, schema、footer、stripe信息
+  // PostScript和Footer没有重新定义class，使用的是 proto::PostScript和proto::Footer，保存在
+  // FileContents
   class ReaderImpl : public Reader {
    private:
     // FileContents
@@ -275,7 +291,7 @@ namespace orc {
     uint64_t getMemoryUse(int stripeIx, std::vector<bool>& selectedColumns);
 
     // internal methods
-    void readMetadata() const;
+    void readMetadata() const;  // 和 psotscript/footer不一样，metadata按需加载
     void checkOrcVersion();
     void getRowIndexStatistics(const proto::StripeInformation& stripeInfo, uint64_t stripeIndex,
                                const proto::StripeFooter& currentStripeFooter,

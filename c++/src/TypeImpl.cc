@@ -72,6 +72,7 @@ namespace orc {
     return current;
   }
 
+  // 为每个Type都分配一个id，root是0，递归为子节点赋值
   void TypeImpl::ensureIdAssigned() const {
     if (columnId_ == -1) {
       const TypeImpl* root = this;
@@ -421,6 +422,9 @@ namespace orc {
 
   std::string printProtobufMessage(const google::protobuf::Message& message);
   std::unique_ptr<Type> convertType(const proto::Type& type, const proto::Footer& footer) {
+    std::cout << "[zhaokuo]" << " convertType begin " << proto::Type::Kind_Name(type.kind())
+              << std::endl;
+
     std::unique_ptr<Type> ret;
     switch (static_cast<int64_t>(type.kind())) {
       case proto::Type_Kind_BOOLEAN:
@@ -481,6 +485,9 @@ namespace orc {
       const auto& attribute = type.attributes(i);
       ret->setAttribute(attribute.key(), attribute.value());
     }
+
+    std::cout << "[zhaokuo]" << " convertType end " << proto::Type::Kind_Name(type.kind())
+              << std::endl;
     return ret;
   }
 

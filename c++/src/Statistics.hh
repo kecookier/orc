@@ -1686,6 +1686,7 @@ namespace orc {
   ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics& s,
                                             const StatContext& statContext);
 
+  // 包含每列的统计信息 ColumnStatistics，从footer里获取。不同类型的列，统计信息不一样
   class StatisticsImpl : public Statistics {
    private:
     std::vector<ColumnStatistics*> colStats_;
@@ -1710,6 +1711,7 @@ namespace orc {
     }
   };
 
+  // STripeStatisticsImpl包括两部分: proto::StripeStatistics 和 rowIndexStats
   class StripeStatisticsImpl : public StripeStatistics {
    private:
     std::unique_ptr<StatisticsImpl> columnStats_;

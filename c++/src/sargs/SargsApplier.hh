@@ -33,6 +33,7 @@
 
 namespace orc {
 
+  // TODO(zhaokuo) 谓词下推的实现
   class SargsApplier {
    public:
     SargsApplier(const Type& type, const SearchArgument* searchArgument, uint64_t rowIndexStride,
