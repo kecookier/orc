@@ -79,6 +79,8 @@ namespace orc {
     return reader_.getFileContents().errorStream;
   }
 
+  // 根据Stripe里一个stream的信息，创建一个读入流
+  // shouldStream: true: 流式的一点一点的读 false:一次把整个二进制块都加载进来
   std::unique_ptr<SeekableInputStream> StripeStreamsImpl::getStream(uint64_t columnId,
                                                                     proto::Stream_Kind kind,
                                                                     bool shouldStream) const {
@@ -88,6 +90,7 @@ namespace orc {
     MemoryPool* pool = reader_.getFileContents().pool;
     for (int i = 0; i < footer_.streams_size(); ++i) {
       const proto::Stream& stream = footer_.streams(i);
+      // 通过 stream里的columnId和kind定位stream
       if (stream.has_kind() && stream.kind() == kind &&
           stream.column() == static_cast<uint64_t>(columnId)) {
         uint64_t streamLength = stream.length();
@@ -107,15 +110,18 @@ namespace orc {
           slice = readCache_->read(range);
         }
 
-        uint64_t myBlock = shouldStream ? input_.getNaturalReadSize() : streamLength;
         std::unique_ptr<SeekableInputStream> seekableInput;
         if (slice.buffer) {
+          // 如果有缓存，就从buffer读
           seekableInput = std::make_unique<SeekableArrayInputStream>(
               slice.buffer->data() + slice.offset, slice.length);
         } else {
+          // 否则创建文件流，从文件读
+          uint64_t myBlock = shouldStream ? input_.getNaturalReadSize() : streamLength;
           seekableInput = std::make_unique<SeekableFileInputStream>(&input_, offset, streamLength,
                                                                     *pool, myBlock);
         }
+        // 返回解压缩流
         return createDecompressor(reader_.getCompression(), std::move(seekableInput),
                                   reader_.getCompressionSize(), *pool,
                                   reader_.getFileContents().readerMetrics);

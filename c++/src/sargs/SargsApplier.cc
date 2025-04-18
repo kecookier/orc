@@ -37,6 +37,7 @@ namespace orc {
     return INVALID_COLUMN_ID;
   }
 
+  // 这里type用的是fileSchema
   SargsApplier::SargsApplier(const Type& type, const SearchArgument* searchArgument,
                              uint64_t rowIndexStride, WriterVersion writerVersion,
                              ReaderMetrics* metrics, const SchemaEvolution* schemaEvolution)
@@ -80,11 +81,17 @@ namespace orc {
     hasSelected_ = false;
     hasSkipped_ = false;
     uint64_t nextSkippedRowGroup = groupsInStripe;
+
+    // 行组下推计算的逻辑：
+    // 针对一个rowGroup，所有列关联的谓词都计算过滤，才能过滤。因此要先按行组遍历(rowGroup)，循环内，在遍历所有列的谓词(leaves)
     size_t rowGroup = groupsInStripe;
     do {
       --rowGroup;
+      // 遍历每个谓词
       for (size_t pred = 0; pred != leaves.size(); ++pred) {
+        // 获取谓词对应的列id
         uint64_t columnIdx = filterColumns_[pred];
+        // 一个行索引包含stripe里一列所有行组的索引信息，获取对应列的行索引
         auto rowIndexIter = rowIndexes.find(columnIdx);
         if (columnIdx == INVALID_COLUMN_ID || rowIndexIter == rowIndexes.cend()) {
           // this column does not exist in current file
@@ -93,6 +100,7 @@ namespace orc {
           // cannot evaluate predicate when ppd is not safe
           leafValues[pred] = TruthValue::YES_NO_NULL;
         } else {
+          // 取出当前列对应行组的统计信息
           // get column statistics
           const proto::ColumnStatistics& statistics =
               rowIndexIter->second.entry(static_cast<int>(rowGroup)).statistics();
@@ -104,10 +112,12 @@ namespace orc {
             bloomFilter = iter->second.entries.at(rowGroup);
           }
 
+          // 计算谓词针对该列当前行组的结果。 <rowGroup, columnIdx>
           leafValues[pred] = leaves[pred].evaluate(writerVersion_, statistics, bloomFilter.get());
         }
       }
 
+      // 针对当前行组，根据谓词计算结果判断是否需要过滤当前行组。
       bool needed = isNeeded(searchArgument_->evaluate(leafValues));
       if (!needed) {
         nextSkippedRows_[rowGroup] = 0;

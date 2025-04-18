@@ -766,8 +766,8 @@ namespace orc {
           (*indexStats)[column].push_back(entry.statistics());
         }
       }
-      offset +=
-          length;  // Stripe里StripeFooter之前的数据，是一个一个流紧密排列的。一个流表示一个序列化的pb结构。
+      // Stripe里StripeFooter之前的数据，是一个一个流紧密排列的。一个流表示一个序列化的pb结构。
+      offset += length;
     }
   }
 
@@ -1064,6 +1064,7 @@ namespace orc {
     bloomFilterIndex_.clear();
 
     // evaluate file statistics if it exists
+    // 谓词下推，检查文件是否可以跳过
     if (sargsApplier_ &&
         !sargsApplier_->evaluateFileStatistics(*footer_, numRowGroupsInStripeRange_)) {
       // skip the entire file
@@ -1090,6 +1091,7 @@ namespace orc {
       processingStripe_ = currentStripe_;
 
       bool isStripeNeeded = true;
+      // 谓词下推，检查当前stripe是否可以直接跳过
       // If PPD enabled and stripe stats existed, evaulate it first
       if (sargsApplier_ && contents_->metadata) {
         const auto& currentStripeStats =
@@ -1101,14 +1103,18 @@ namespace orc {
             sargsApplier_->evaluateStripeStatistics(currentStripeStats, stripeRowGroupCount);
       }
 
+      // 计算Stripe里可以跳过的行组
       if (isStripeNeeded) {
         currentStripeFooter_ = getStripeFooter(currentStripeInfo_, *contents_.get());
         if (sargsApplier_) {
+          // 谓词下推，根据行组统计信息判断是否可以跳过Stripe里的行组
           // read row group statistics and bloom filters of current stripe
           loadStripeIndex();
 
           // select row groups to read in the current stripe
           sargsApplier_->pickRowGroups(rowsInCurrentStripe_, rowIndexes_, bloomFilterIndex_);
+          // 如果Stripe里从currentRowInStripe_
+          // 后边的行所在RowGroup都过滤掉了，那么可以跳过当前Stripe
           if (sargsApplier_->hasSelectedFrom(currentRowInStripe_)) {
             // current stripe has at least one row group matching the predicate
             break;
@@ -1136,6 +1142,7 @@ namespace orc {
       reader_ = buildReader(*contents_->schema, stripeStreams, useTightNumericVector_,
                             throwOnSchemaEvolutionOverflow_, /*convertToReadType=*/true);
 
+      // 应用PPD
       if (sargsApplier_) {
         // move to the 1st selected row group when PPD is enabled.
         // PPD= Predicate Pushdown(谓词下推)
@@ -1143,6 +1150,7 @@ namespace orc {
             advanceToNextRowGroup(currentRowInStripe_, rowsInCurrentStripe_,
                                   footer_->row_index_stride(), sargsApplier_->getNextSkippedRows());
         previousRow_ = firstRowOfStripe_[currentStripe_] + currentRowInStripe_ - 1;
+        // 如果currentRowInStripe_不为0，说明跳过了部分行组，这里是实际进行seek，挪动游标到指定位置
         if (currentRowInStripe_ > 0) {
           seekToRowGroup(static_cast<uint32_t>(currentRowInStripe_ / footer_->row_index_stride()));
         }
@@ -1168,6 +1176,9 @@ namespace orc {
     }
     uint64_t rowsToRead =
         std::min(static_cast<uint64_t>(data.capacity), rowsInCurrentStripe_ - currentRowInStripe_);
+    // 谓词下推，如果有行组可以跳过，修正rowsToRead
+    // 如果 row_index_stride_
+    // 设置的很小，行组就很小。这时候如果谓词下推，每次读取的batchSize就会很小。
     if (sargsApplier_ && rowsToRead > 0) {
       rowsToRead =
           computeBatchSize(rowsToRead, currentRowInStripe_, rowsInCurrentStripe_,
@@ -1201,6 +1212,7 @@ namespace orc {
       }
     }
 
+    // 如果当前stripe里的数据读完了，更新stripe索引
     if (currentRowInStripe_ >= rowsInCurrentStripe_) {
       currentStripe_ += 1;
       currentRowInStripe_ = 0;

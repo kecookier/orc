@@ -113,8 +113,10 @@ namespace orc {
   /**
    * The interface for reading ORC data types.
    */
+  // 基类ColumnReader表示一列数据的reader， 基本是封装一个解码器
   class ColumnReader {
    protected:
+    // present流
     std::unique_ptr<ByteRleDecoder> notNullDecoder;
     uint64_t columnId;
     MemoryPool& memoryPool;

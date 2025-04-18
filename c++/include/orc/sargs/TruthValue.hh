@@ -24,6 +24,7 @@ namespace orc {
   /**
    * The potential result sets of logical operations.
    */
+  // 对行组进行逻辑运算的结果
   enum class TruthValue {
     YES,         // all rows satisfy the predicate
     NO,          // all rows dissatisfy the predicate

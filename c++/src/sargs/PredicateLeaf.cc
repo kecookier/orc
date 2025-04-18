@@ -690,6 +690,8 @@ namespace orc {
     }
   }
 
+  // 根据某一列的统计信息，计算谓词结果，判断是否需要过滤掉该列
+  // 返回值： YES_NO_NULL 表示无法确定
   TruthValue PredicateLeaf::evaluate(const WriterVersion writerVersion,
                                      const proto::ColumnStatistics& colStats,
                                      const BloomFilter* bloomFilter) const {

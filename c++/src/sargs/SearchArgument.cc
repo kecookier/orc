@@ -384,6 +384,7 @@ namespace orc {
    * @param expr The expression to clean up
    * @return The cleaned up expression
    */
+  // MAYBE: 三值逻辑，查询优化领域词汇
   TreeNode SearchArgumentBuilderImpl::foldMaybe(TreeNode expr) {
     if (expr) {
       for (size_t i = 0; i != expr->getChildren().size(); ++i) {
@@ -564,10 +565,15 @@ namespace orc {
       throw std::invalid_argument("Failed to end " + std::to_string(currTree_.size()) +
                                   " operations.");
     }
+    // 把 Not表达式下推到叶子结点
     root_ = pushDownNot(root_);
+    // 消除Maybe(三值逻辑)
     root_ = foldMaybe(root_);
+    // 多层表达式展开成一层
     root_ = flatten(root_);
+    // 转为CNF(合取范式)
     root_ = convertToCNF(root_);
+    // 多层表达式展开成一层
     root_ = flatten(root_);
     std::vector<size_t> leafReorder(leaves_.size(), UNUSED_LEAF);
     size_t newLeafCount = compactLeaves(root_, 0, leafReorder.data());

@@ -41,7 +41,9 @@ namespace orc {
     const RowReaderImpl& reader_;
     const proto::StripeInformation& stripeInfo_;
     const proto::StripeFooter& footer_;
+    // 文件里第几个stripe
     const uint64_t stripeIndex_;
+    // stripe的起始位置offset
     const uint64_t stripeStart_;
     InputStream& input_;
     const Timezone& writerTimezone_;

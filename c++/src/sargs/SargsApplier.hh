@@ -33,7 +33,6 @@
 
 namespace orc {
 
-  // TODO(zhaokuo) 谓词下推的实现
   class SargsApplier {
    public:
     SargsApplier(const Type& type, const SearchArgument* searchArgument, uint64_t rowIndexStride,
@@ -137,6 +136,11 @@ namespace orc {
     // Map from RowGroup index to the next skipped row of the selected range it
     // locates. If the RowGroup is not selected, set the value to 0.
     // Calculated in pickRowGroups().
+    // <Stripe里第几个RowGroup, 该rowGroup读完之后，继读从哪行开始(相对该Stripe的行数)>
+    // 如 rowGroup=100， stripe里有3个rowGroup，rowGroup 2被跳过，这个vec如下:
+    // <3, 300>
+    // <2, 0>
+    // <1, 200>
     std::vector<uint64_t> nextSkippedRows_;
     uint64_t totalRowsInStripe_;
     bool hasSelected_;

@@ -145,7 +145,8 @@ namespace orc {
     const bool throwOnHive11DecimalOverflow_;
     const int32_t forcedScaleOnHive11Decimal_;
 
-    // <TypeImpl.columnId, 是否读取这一列> 注意这个id不代表第几列
+    // <TypeImpl.columnId, 是否读取这一列>
+    // 注意这个id不代表第几列，是TypemImpl里生成的id，和proto里flatten的schema下标可以对齐
     std::vector<bool> selectedColumns_;
 
     // footer

@@ -44,6 +44,7 @@ namespace orc {
     DATE = 15,
     VARCHAR = 16,
     CHAR = 17,
+    // 带时区的时间戳
     TIMESTAMP_INSTANT = 18
   };
 

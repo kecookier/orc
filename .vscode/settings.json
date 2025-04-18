@@ -69,5 +69,8 @@
         "variant": "cpp",
         "vector": "cpp",
         "algorithm": "cpp"
-    }
+    },
+    "vim.ignorecase": true,
+    "vim.smartcase": true,
+    "vim.sneakUseIgnorecaseAndSmartcase": false
 }

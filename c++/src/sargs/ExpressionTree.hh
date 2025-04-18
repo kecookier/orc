@@ -74,7 +74,7 @@ namespace orc {
     TruthValue evaluate(const std::vector<TruthValue>& leaves) const;
 
    private:
-    Operator operator_;
+    Operator operator_;  // 表达式类型
     std::vector<TreeNode> children_;
     size_t leaf_;
     TruthValue constant_;

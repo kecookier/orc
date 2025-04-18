@@ -38,6 +38,7 @@ namespace orc {
 
    protected:
     bool useTightNumericVector;
+    // reader fileType的RowBatch(data)里，然后转成 readType的RowBatch
     const Type& readType;
     std::unique_ptr<ColumnReader> reader;
     std::unique_ptr<ColumnVectorBatch> data;

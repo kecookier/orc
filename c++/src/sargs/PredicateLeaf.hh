@@ -36,6 +36,7 @@ namespace orc {
   /**
    * The primitive predicates that form a SearchArgument.
    */
+  // 谓词叶子结点
   class PredicateLeaf {
    public:
     /**

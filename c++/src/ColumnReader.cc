@@ -55,6 +55,7 @@ namespace orc {
     std::unique_ptr<SeekableInputStream> stream =
         stripe.getStream(columnId, proto::Stream_Kind_PRESENT, true);
     if (stream.get()) {
+      // stream是解压缩留，外边再套一层解码器
       notNullDecoder = createBooleanRleDecoder(std::move(stream), metrics);
     }
   }
@@ -135,6 +136,7 @@ namespace orc {
     }
   }
 
+  // BooleanColumnReader持有 字节RLE解码器
   template <typename BatchType>
   class BooleanColumnReader : public ColumnReader {
    private:
@@ -229,6 +231,7 @@ namespace orc {
     }
   };
 
+  // IntegerColumnReader 持有 RLE解码器
   template <typename BatchType>
   class IntegerColumnReader : public ColumnReader {
    protected:
@@ -361,6 +364,7 @@ namespace orc {
     nanoRle_->seek(positions.at(columnId));
   }
 
+  // DoubleColumnReader 直接持有解压缩流，无需解码器
   template <TypeKind columnKind, bool isLittleEndian, typename ValueType, typename BatchType>
   class DoubleColumnReader : public ColumnReader {
    public:
@@ -547,6 +551,7 @@ namespace orc {
     }
   }
 
+  // 字符串类型的ColumnReader可能是 StringDictionaryColumnReader 或者 StringDirectColumnReader
   class StringDictionaryColumnReader : public ColumnReader {
    private:
     std::shared_ptr<StringDictionary> dictionary_;
@@ -829,6 +834,7 @@ namespace orc {
 
   class StructColumnReader : public ColumnReader {
    private:
+    // 只包要读取的列
     std::vector<std::unique_ptr<ColumnReader>> children_;
 
    public:
@@ -854,6 +860,7 @@ namespace orc {
       : ColumnReader(type, stripe) {
     // count the number of selected sub-columns
     const std::vector<bool> selectedColumns = stripe.getSelectedColumns();
+    // TODO(zhaokuo) proto::StripeFooter里 columns的下标，和TypeImpl里生成的columnId居然是一样的
     switch (static_cast<int64_t>(stripe.getEncoding(columnId).kind())) {
       case proto::ColumnEncoding_Kind_DIRECT:
         for (unsigned int i = 0; i < type.getSubtypeCount(); ++i) {
@@ -868,6 +875,7 @@ namespace orc {
       case proto::ColumnEncoding_Kind_DICTIONARY:
       case proto::ColumnEncoding_Kind_DICTIONARY_V2:
       default:
+        // TODO(zhaokuo) ?? Struct的自理诶不支持 direct_v2/dictionary/dictionary_v2 编码？
         throw ParseError("Unknown encoding for StructColumnReader");
     }
   }
@@ -1320,6 +1328,7 @@ namespace orc {
     }
   }
 
+  // decimal根据short还是long，对应 Decimal64ColumnReader和Decimal128ColumnReader
   class Decimal64ColumnReader : public ColumnReader {
    public:
     static const uint32_t MAX_PRECISION_64 = 18;
@@ -1780,6 +1789,7 @@ namespace orc {
                                                    throwOnSchemaEvolutionOverflow);
 
       case STRUCT:
+        std::cout << "[zhaokuo]" << " create StructColumnReader with type:" << type.toString();
         return std::make_unique<StructColumnReader>(type, stripe, useTightNumericVector,
                                                     throwOnSchemaEvolutionOverflow);
 

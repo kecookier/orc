@@ -38,6 +38,10 @@ namespace orc {
    *
    * This requires that the filter be normalized into conjunctive normal form
    * (<a href="http://en.wikipedia.org/wiki/Conjunctive_normal_form">CNF</a>).
+   * CNF: 把表达式转成形式如外层是and，内层是or
+   * 例如原始： (A and B) or (C and D))
+   * 转换CNF： (A OR C) and (A OR D) and (B OR C) and (B OR D)
+   * 这样利于遍历
    */
   class SearchArgumentImpl : public SearchArgument {
    public:

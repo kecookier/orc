@@ -1075,7 +1075,8 @@ namespace orc {
 #define DEFINE_STRING_VARIANT_CONVERT_CONVERT_TO_DECIMAL_READER(FROM, TO) \
   using FROM##To##TO##ColumnReader = StringVariantToDecimalColumnReader<TO##VectorBatch>;
 
-  DEFINE_NUMERIC_CONVERT_READER(Boolean, Byte, int8_t)
+  using BooleanToByteColumnReader =
+      NumericConvertColumnReader<BooleanVectorBatch, ByteVectorBatch, int8_t>;
   DEFINE_NUMERIC_CONVERT_READER(Boolean, Short, int16_t)
   DEFINE_NUMERIC_CONVERT_READER(Boolean, Int, int32_t)
   DEFINE_NUMERIC_CONVERT_READER(Boolean, Long, int64_t)
@@ -1277,18 +1278,48 @@ namespace orc {
     switch (fileType.getKind()) {
       case BOOLEAN: {
         switch (readType.getKind()) {
-          CASE_CREATE_READER(BYTE, BooleanToByte)
-          CASE_CREATE_READER(SHORT, BooleanToShort)
-          CASE_CREATE_READER(INT, BooleanToInt)
-          CASE_CREATE_READER(LONG, BooleanToLong)
-          CASE_CREATE_READER(FLOAT, BooleanToFloat)
-          CASE_CREATE_READER(DOUBLE, BooleanToDouble)
-          CASE_CREATE_READER(STRING, BooleanToString)
-          CASE_CREATE_READER(CHAR, BooleanToChar)
-          CASE_CREATE_READER(VARCHAR, BooleanToVarchar)
-          CASE_CREATE_DECIMAL_READER(Boolean)
-          CASE_CREATE_READER(TIMESTAMP, BooleanToTimestamp)
-          CASE_CREATE_READER(TIMESTAMP_INSTANT, BooleanToTimestamp)
+          case BYTE:
+            return std::make_unique<BooleanToByteColumnReader>(readType, fileType, stripe,
+                                                               throwOnOverflow);
+          case SHORT:
+            return std::make_unique<BooleanToShortColumnReader>(readType, fileType, stripe,
+                                                                throwOnOverflow);
+          case INT:
+            return std::make_unique<BooleanToIntColumnReader>(readType, fileType, stripe,
+                                                              throwOnOverflow);
+          case LONG:
+            return std::make_unique<BooleanToLongColumnReader>(readType, fileType, stripe,
+                                                               throwOnOverflow);
+          case FLOAT:
+            return std::make_unique<BooleanToFloatColumnReader>(readType, fileType, stripe,
+                                                                throwOnOverflow);
+          case DOUBLE:
+            return std::make_unique<BooleanToDoubleColumnReader>(readType, fileType, stripe,
+                                                                 throwOnOverflow);
+          case STRING:
+            return std::make_unique<BooleanToStringColumnReader>(readType, fileType, stripe,
+                                                                 throwOnOverflow);
+          case CHAR:
+            return std::make_unique<BooleanToCharColumnReader>(readType, fileType, stripe,
+                                                               throwOnOverflow);
+          case VARCHAR:
+            return std::make_unique<BooleanToVarcharColumnReader>(readType, fileType, stripe,
+                                                                  throwOnOverflow);
+          case DECIMAL: {
+            if (isDecimal64(readType)) {
+              return std::make_unique<BooleanToDecimal64ColumnReader>(readType, fileType, stripe,
+                                                                      throwOnOverflow);
+            } else {
+              return std::make_unique<BooleanToDecimal128ColumnReader>(readType, fileType, stripe,
+                                                                       throwOnOverflow);
+            }
+          }
+          case TIMESTAMP:
+            return std::make_unique<BooleanToTimestampColumnReader>(readType, fileType, stripe,
+                                                                    throwOnOverflow);
+          case TIMESTAMP_INSTANT:
+            return std::make_unique<BooleanToTimestampColumnReader>(readType, fileType, stripe,
+                                                                    throwOnOverflow);
           case BOOLEAN:
           case BINARY:
           case LIST:
