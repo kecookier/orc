@@ -1789,7 +1789,8 @@ namespace orc {
                                                    throwOnSchemaEvolutionOverflow);
 
       case STRUCT:
-        std::cout << "[zhaokuo]" << " create StructColumnReader with type:" << type.toString();
+        std::cout << "[zhaokuo]" << " create StructColumnReader with type:" << type.toString()
+                  << std::endl;
         return std::make_unique<StructColumnReader>(type, stripe, useTightNumericVector,
                                                     throwOnSchemaEvolutionOverflow);
 

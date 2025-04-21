@@ -26,6 +26,7 @@
 #include <limits>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 #include <typeinfo>
 
 #ifdef __clang__
@@ -568,6 +569,8 @@ namespace orc {
     if (hasNulls && !notNull[rowId]) {
       writeString(buffer, "null");
     } else {
+      writeString(buffer, "[zhaokuo] row:");
+      writeString(buffer, std::to_string(rowId).c_str());
       writeChar(buffer, '{');
       for (unsigned int i = 0; i < fieldPrinter_.size(); ++i) {
         if (i != 0) {

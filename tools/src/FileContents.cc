@@ -32,12 +32,17 @@ void printContents(const char* filename, const orc::RowReaderOptions& rowReaderO
   rowReader = reader->createRowReader(rowReaderOpts);
 
   std::unique_ptr<orc::ColumnVectorBatch> batch = rowReader->createRowBatch(1000);
+  std::cout << "[zhaokuo]" << " batch: " << batch->toString() << std::endl;
   std::string line;
   orc::ColumnPrinter::Param param;
   param.printDecimalAsString = true;
-  param.printDecimalTrimTrailingZeros = true;
+  param.printDecimalTrimTrailingZeros = false;
+
   std::unique_ptr<orc::ColumnPrinter> printer =
-      createColumnPrinter(line, &rowReader->getSelectedType(), param);
+      createColumnPrinter(line,
+                          rowReaderOpts.getReadType() ? rowReaderOpts.getReadType().get()
+                                                      : &rowReader->getSelectedType(),
+                          param);
 
   while (rowReader->next(*batch)) {
     printer->reset(*batch);
@@ -63,6 +68,19 @@ int main(int argc, char* argv[]) {
     std::cerr << "Print contents of ORC files.\n";
     return 1;
   }
+
+  std::shared_ptr<orc::Type> readType(orc::Type::buildTypeFromString(
+      "struct<id:bigint,bizcode:bigint,bizid:bigint,regionname:string,regionid:bigint,"
+      "provincename:string,externalprovinceid:bigint,provinceid:bigint,provincecode:bigint,"
+      "cityname:string,externalcityid:bigint,cityid:bigint,citycode:bigint,poiname:string,"
+      "externalpoiid:bigint,poiid:string,poitype:bigint,productkey:string,productname:string,"
+      "deviceid:string,devicename:string,collecttype:bigint,taskid:string,taskname:string,"
+      "trackid:string,resultids:string,objectids:string,eventtype:string,eventname:string,"
+      "eventstarttime:string,eventendtime:string,duration:decimal(20,4),iscurtainexist:bigint,"
+      "isrearopen:bigint,analysepic:string>"));
+  rowReaderOptions.setReadType(readType);
+  rowReaderOptions.setUseTightNumericVector(true);
+
   for (int i = 0; i < argc; ++i) {
     try {
       printContents(argv[i], rowReaderOptions);

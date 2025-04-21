@@ -11,7 +11,7 @@
             // Resolved by CMake Tools:
             "program": "${command:cmake.launchTargetPath}",
             "args": [
-                "${workspaceFolder}/examples/decimal.orc"
+                "${workspaceFolder}/es2hive__0295972b_73a9_4894_89b9_d549c1c6f40b"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

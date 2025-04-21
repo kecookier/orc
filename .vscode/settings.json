@@ -68,7 +68,8 @@
         "unordered_set": "cpp",
         "variant": "cpp",
         "vector": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "*.ipp": "cpp"
     },
     "vim.ignorecase": true,
     "vim.smartcase": true,
